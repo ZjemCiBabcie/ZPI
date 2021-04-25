@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import pandas as pd
-from sklearn.preprocessing import StandardScaler, Normalizer
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from scipy.signal import savgol_filter
 
 
@@ -24,7 +24,7 @@ def standardization(dataframe):
 
 
 def normalization(dataframe):
-    norm = Normalizer()
+    norm = MinMaxScaler()
     norm_df = norm.fit_transform(dataframe)
     normalized_df = pd.DataFrame(norm_df, columns=df.columns)
     return normalized_df
@@ -46,6 +46,7 @@ def plot(dataframe, smoothed, normalized, title):
     fig.text(0.5, 0.04, 'Sequence number', ha='center')
     fig.text(0.08, 0.55, 'Value', va='center', rotation='vertical')
     plt.legend(['X', 'Y', 'Z'], loc='upper right', bbox_to_anchor=(1.07, 3.45))
+    plt.savefig('{}.png'.format(title))
     plt.show()
 
 
