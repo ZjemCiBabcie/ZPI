@@ -19,33 +19,32 @@ def smoothing(dataframe):
 def standardization(dataframe):
     standscaler = StandardScaler()
     scaledscaler_df = standscaler.fit_transform(dataframe)
-    standarized_df = pd.DataFrame(scaledscaler_df, columns=df.columns)
-    return standarized_df
+    standarised_df = pd.DataFrame(scaledscaler_df, columns=df.columns)
+    return standarised_df
 
 
-def normalization(dataframe):
+def normalisation(dataframe):
     norm = MinMaxScaler()
     norm_df = norm.fit_transform(dataframe)
-    normalized_df = pd.DataFrame(norm_df, columns=df.columns)
-    return normalized_df
+    normalised_df = pd.DataFrame(norm_df, columns=df.columns)
+    return normalised_df
 
 
-def normalize_or_standarize(smoothed_data, action):
+def feature_scaling(smoothed_data, action):
     if action == 'N':
-        return normalization(smoothed_data)
+        return normalisation(smoothed_data)
     elif action == 'S':
         return standardization(smoothed_data)
 
 
-def plot(dataframe, smoothed, normalized, title):
-    fig, axs = plt.subplots(3)
-    fig.suptitle("[1] DATA, [2] SMOOTHED, [3] {}".format(title))
+def plot(dataframe, scaled, title):
+    fig, axs = plt.subplots(2)
+    fig.suptitle("[1] RAW DATA, [2] {}".format(title))
     axs[0].plot(dataframe)
-    axs[1].plot(smoothed)
-    axs[2].plot(normalized)
+    axs[1].plot(scaled)
     fig.text(0.5, 0.04, 'Sequence number', ha='center')
     fig.text(0.08, 0.55, 'Value', va='center', rotation='vertical')
-    plt.legend(['X', 'Y', 'Z'], loc='upper right', bbox_to_anchor=(1.07, 3.45))
+    plt.legend(['X', 'Y', 'Z'], loc='upper right', bbox_to_anchor=(1.07, 2))
     plt.savefig('{}.png'.format(title))
     plt.show()
 
@@ -55,8 +54,8 @@ if __name__ == "__main__":
     print(df)
 
     data_smoothed = smoothing(df)
-    data_normalized = normalize_or_standarize(data_smoothed, 'N')
-    data_standarized = normalize_or_standarize(data_smoothed, 'S')
+    data_normalised = feature_scaling(data_smoothed, 'N')
+    data_standarised = feature_scaling(data_smoothed, 'S')
 
-    plot(df, data_smoothed, data_normalized, 'NORMALIZED')
-    plot(df, data_smoothed, data_standarized, 'STANDARIZED')
+    plot(df, data_normalised, 'NORMALISED')
+    plot(df, data_standarised, 'STANDARISED')
