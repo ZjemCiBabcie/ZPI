@@ -1,33 +1,31 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.model_selection import train_test_split
 from scipy.signal import savgol_filter
 
 
 def excel_to_python(file, sheet):
-    column_delete = "Timestamp"
-    driverExcelFile = pd.ExcelFile("{}".format(file))
-    df = pd.read_excel(driverExcelFile, "{}".format(sheet), usecols=lambda x: x not in column_delete)
-    return df
+    dataset = pd.read_excel("{}".format(file), sheet_name=sheet)
+    X = dataset.iloc[:, 1:]
+    return X
 
 
-def smoothing(dataframe):
-    data_smoothed = dataframe.apply(lambda x: savgol_filter(x, window_length=51, polyorder=3))
-    return data_smoothed
+def smoothing(X):
+    smoothed = X.apply(lambda x: savgol_filter(x, window_length=51, polyorder=3))
+    return smoothed
 
 
-def standardization(dataframe):
-    standscaler = StandardScaler()
-    scaledscaler_df = standscaler.fit_transform(dataframe)
-    standarised_df = pd.DataFrame(scaledscaler_df, columns=df.columns)
-    return standarised_df
+def standardization(X):
+    standardScaler = StandardScaler()
+    X = standardScaler.fit_transform(X)
+    return X
 
 
-def normalisation(dataframe):
-    norm = MinMaxScaler()
-    norm_df = norm.fit_transform(dataframe)
-    normalised_df = pd.DataFrame(norm_df, columns=df.columns)
-    return normalised_df
+def normalisation(X):
+    minmaxScaler = MinMaxScaler()
+    X = minmaxScaler.fit_transform(X)
+    return X
 
 
 def feature_scaling(smoothed_data, action):
