@@ -1,3 +1,4 @@
+from datetime import datetime
 import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
@@ -7,8 +8,32 @@ from scipy.signal import savgol_filter
 
 def excel_to_python(file, sheet):
     dataset = pd.read_excel("{}".format(file), sheet_name=sheet)
-    X = dataset.iloc[:, 1:]
-    return X
+    new_dataset = pd.DataFrame(columns=list('XYZ'))
+    for i in range(dataset.iloc[:10000, 0].size):
+        dataset.iloc[i, 0] = dataset.iloc[i, 0].replace(microsecond=0)
+    k = 0
+    while k <= dataset.iloc[:10000, 0].size:
+        j = 0
+        X = 0
+        Y = 0
+        Z = 0
+        f = False
+        while dataset.iloc[k, 0] == dataset.iloc[k + 1, 0]:
+            f = True
+            X += dataset.iloc[k, 1]
+            Y += dataset.iloc[k, 2]
+            Z += dataset.iloc[k, 3]
+            j += 1
+            k += 1
+        if f is False:
+            k += 1
+        else:
+            X += dataset.iloc[k, 1]
+            Y += dataset.iloc[k, 2]
+            Z += dataset.iloc[k, 3]
+            j += 1
+            new_dataset = new_dataset.append({'X': X/j, 'Y': Y/j, 'Z': Z/j}, ignore_index=True)
+    return new_dataset
 
 
 def smoothing(X):
@@ -48,7 +73,8 @@ def plot(dataframe, scaled, title):
 
 
 if __name__ == "__main__":
-    df = excel_to_python("kierowcaA.xlsx", "Acceleration")
+    df = excel_to_python("opolska-brzezina.xlsx", "Acceleration")
+
     print(df)
 
     data_smoothed = smoothing(df)
