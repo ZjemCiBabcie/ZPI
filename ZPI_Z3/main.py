@@ -1,63 +1,94 @@
-from datetime import datetime
 import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.model_selection import train_test_split
 from scipy.signal import savgol_filter
+import statistics
+import numpy as np
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import confusion_matrix, accuracy_score
 
 
-def excel_to_python(file, sheet):
-    dataset = pd.read_excel("{}".format(file), sheet_name=sheet)
-    new_dataset = pd.DataFrame(columns=list('XYZ'))
-    for i in range(dataset.iloc[:10000, 0].size):
-        dataset.iloc[i, 0] = dataset.iloc[i, 0].replace(microsecond=0)
-    k = 0
-    while k <= dataset.iloc[:10000, 0].size:
-        j = 0
-        X = 0
-        Y = 0
-        Z = 0
-        f = False
-        while dataset.iloc[k, 0] == dataset.iloc[k + 1, 0]:
-            f = True
-            X += dataset.iloc[k, 1]
-            Y += dataset.iloc[k, 2]
-            Z += dataset.iloc[k, 3]
-            j += 1
-            k += 1
-        if f is False:
-            k += 1
-        else:
-            X += dataset.iloc[k, 1]
-            Y += dataset.iloc[k, 2]
-            Z += dataset.iloc[k, 3]
-            j += 1
-            new_dataset = new_dataset.append({'X': X/j, 'Y': Y/j, 'Z': Z/j}, ignore_index=True)
-    return new_dataset
+def excel_to_python(file):
+    dataset = pd.read_csv("{}".format(file))
+    data = dataset.iloc[:, 1:]
+    return data
 
 
-def smoothing(X):
-    smoothed = X.apply(lambda x: savgol_filter(x, window_length=51, polyorder=3))
+def breaking_classification(dataframe):
+    X = []
+    y = []
+    mean_X = statistics.mean(dataframe.iloc[:, 0].values)
+    mean_Y = statistics.mean(dataframe.iloc[:, 1].values)
+    lower_bound = mean_Y - 0.3
+    upper_bound = mean_Y + 0.3
+
+    aggro_breakpoint = 1.8
+
+    i = 0
+    temp = []
+    if_current_lower_than = False
+    for i in range(len(dataframe.index) - 1):
+        current = None
+        if len(temp) == 3:
+            X.append(temp)
+            difference = temp[2] - temp[0]
+            if abs(difference) > aggro_breakpoint:
+                y.append(1)
+            else:
+                y.append(0)
+            temp = []
+            if_current_lower_than = False
+        if dataframe.iloc[i, 1] < lower_bound or dataframe.iloc[i, 1] > upper_bound:
+            current = dataframe.iloc[i, 1]
+            if len(temp) == 1:
+                if temp[0] > current:
+                    if_current_lower_than = True
+                    temp.append(dataframe.iloc[i, 1])
+                else:
+                    temp = [dataframe.iloc[i, 1]]
+                    continue
+            elif len(temp) > 1:
+                if temp[-1] > current and if_current_lower_than is True:
+                    temp.append(dataframe.iloc[i, 1])
+                else:
+                    temp = []
+                    if_current_lower_than = False
+                    temp.append(current)
+            elif len(temp) == 0:
+                temp.append(dataframe.iloc[i, 1])
+
+    return np.array(X), np.array(y)
+
+
+def training():
+    X, y = breaking_classification(df)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+
+    sc = StandardScaler()
+    X_train = sc.fit_transform(X_train)
+    X_test = sc.fit_transform(X_test)
+
+    # classifier_KNN = KNeighborsClassifier(n_neighbors=5, metric='minkowski', p=2)
+    # classifier_KNN.fit(X_train, y_train)
+    #
+    # classifier_SVM = SVC(kernel='rbf')
+    # classifier_SVM.fit(X_train, y_train)
+
+    classifier_decision_tree = DecisionTreeClassifier(criterion='entropy')
+    classifier_decision_tree.fit(X_train, y_train)
+
+    y_pred = classifier_decision_tree.predict(X_test)
+    cm = confusion_matrix(y_test, y_pred)
+    print(cm)
+    print(accuracy_score(y_test, y_pred))
+
+
+def smoothing(data):
+    smoothed = data.apply(lambda x: savgol_filter(x, window_length=51, polyorder=3))
     return smoothed
-
-
-def standardization(X):
-    standardScaler = StandardScaler()
-    X = standardScaler.fit_transform(X)
-    return X
-
-
-def normalisation(X):
-    minmaxScaler = MinMaxScaler()
-    X = minmaxScaler.fit_transform(X)
-    return X
-
-
-def feature_scaling(smoothed_data, action):
-    if action == 'N':
-        return normalisation(smoothed_data)
-    elif action == 'S':
-        return standardization(smoothed_data)
 
 
 def plot(dataframe, scaled, title):
@@ -67,19 +98,18 @@ def plot(dataframe, scaled, title):
     axs[1].plot(scaled)
     fig.text(0.5, 0.04, 'Sequence number', ha='center')
     fig.text(0.08, 0.55, 'Value', va='center', rotation='vertical')
-    plt.legend(['X', 'Y', 'Z'], loc='upper right', bbox_to_anchor=(1.07, 2))
+    plt.legend(['X', 'Y'], loc='upper right', bbox_to_anchor=(1.07, 2))
     plt.savefig('{}.png'.format(title))
     plt.show()
 
 
 if __name__ == "__main__":
-    df = excel_to_python("opolska-brzezina.xlsx", "Acceleration")
+    df = excel_to_python("siedzenie_przodem.csv")
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+        print(df)
 
-    print(df)
+    breaking_classification(df)
+    training()
 
-    data_smoothed = smoothing(df)
-    data_normalised = feature_scaling(data_smoothed, 'N')
-    data_standarised = feature_scaling(data_smoothed, 'S')
-
-    plot(df, data_normalised, 'NORMALISED')
-    plot(df, data_standarised, 'STANDARISED')
+    # plot(df, data_normalised, 'NORMALISED')
+    # plot(df, data_standarised, 'STANDARISED')
