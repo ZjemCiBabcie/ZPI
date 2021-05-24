@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import pandas as pd
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from scipy.signal import savgol_filter
 import statistics
@@ -9,32 +9,36 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import confusion_matrix, accuracy_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.naive_bayes import GaussianNB
 
 
-def excel_to_python(file):
-    dataset = pd.read_csv("{}".format(file))
-    data = dataset.iloc[:, 1:]
-    return data
+def excel_to_python(columns):
+    training_set = pd.read_csv('training-set.csv')
+    test_set = pd.read_csv('test-set.csv')
+    training_data = training_set.iloc[:, columns:]
+    test_data = test_set.iloc[:, columns:]
+    print(training_data)
+    return training_data, test_data
 
 
 def breaking_classification(dataframe):
     X = []
     y = []
-    mean_X = statistics.mean(dataframe.iloc[:, 0].values)
     mean_Y = statistics.mean(dataframe.iloc[:, 1].values)
     lower_bound = mean_Y - 0.3
     upper_bound = mean_Y + 0.3
 
     aggro_breakpoint = 1.8
 
-    i = 0
     temp = []
     if_current_lower_than = False
     for i in range(len(dataframe.index) - 1):
         current = None
         if len(temp) == 3:
             X.append(temp)
-            difference = temp[2] - temp[0]
+            difference = temp[-1] - temp[0]
             if abs(difference) > aggro_breakpoint:
                 y.append(1)
             else:
@@ -63,27 +67,133 @@ def breaking_classification(dataframe):
     return np.array(X), np.array(y)
 
 
-def training():
-    X, y = breaking_classification(df)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+def acceleration_classification(dataframe):
+    X = []
+    y = []
+    mean_Y = statistics.mean(dataframe.iloc[:, 1].values)
+    lower_bound = mean_Y - 0.3
+    upper_bound = mean_Y + 0.3
+
+    aggro_breakpoint = 1.8
+
+    temp = []
+    if_current_greater_than = False
+    for i in range(len(dataframe.index) - 1):
+        current = None
+        if len(temp) == 3:
+            X.append(temp)
+            difference = temp[-1] - temp[0]
+            if abs(difference) > aggro_breakpoint:
+                y.append(1)
+            else:
+                y.append(0)
+            temp = []
+            if_current_greater_than = False
+        if dataframe.iloc[i, 1] < lower_bound or dataframe.iloc[i, 1] > upper_bound:
+            current = dataframe.iloc[i, 1]
+            if len(temp) == 1:
+                if temp[0] < current:
+                    if_current_greater_than = True
+                    temp.append(dataframe.iloc[i, 1])
+                else:
+                    temp = [dataframe.iloc[i, 1]]
+                    continue
+            elif len(temp) > 1:
+                if temp[-1] < current and if_current_greater_than is True:
+                    temp.append(dataframe.iloc[i, 1])
+                else:
+                    temp = []
+                    if_current_greater_than = False
+                    temp.append(current)
+            elif len(temp) == 0:
+                temp.append(dataframe.iloc[i, 1])
+
+    return np.array(X), np.array(y)
+
+
+def turning_classification(dataframe):
+    X = []
+    y = []
+    mean_X = statistics.mean(dataframe.iloc[:, 0].values)
+    mean_Y = statistics.mean(dataframe.iloc[:, 1].values)
+
+    lower_bound_X = mean_X - 0.15
+    upper_bound_X = mean_X + 0.15
+
+    lower_bound_Y = mean_Y - 0.3
+    upper_bound_Y = mean_Y + 0.3
+
+    aggro_breakpoint = 1.8
+
+    # temp = []
+    # if_current_greater_than = False
+    # for i in range(len(dataframe.index) - 1):
+    #     current = None
+    #     if len(temp) == 3:
+    #         X.append(temp)
+    #         difference = temp[-1] - temp[0]
+    #         if abs(difference) > aggro_breakpoint:
+    #             y.append(1)
+    #         else:
+    #             y.append(0)
+    #         temp = []
+    #         if_current_greater_than = False
+    #     if dataframe.iloc[i, 1] < lower_bound or dataframe.iloc[i, 1] > upper_bound:
+    #         current = dataframe.iloc[i, 1]
+    #         if len(temp) == 1:
+    #             if temp[0] < current:
+    #                 if_current_greater_than = True
+    #                 temp.append(dataframe.iloc[i, 1])
+    #             else:
+    #                 temp = [dataframe.iloc[i, 1]]
+    #                 continue
+    #         elif len(temp) > 1:
+    #             if temp[-1] < current and if_current_greater_than is True:
+    #                 temp.append(dataframe.iloc[i, 1])
+    #             else:
+    #                 temp = []
+    #                 if_current_greater_than = False
+    #                 temp.append(current)
+    #         elif len(temp) == 0:
+    #             temp.append(dataframe.iloc[i, 1])
+
+    return np.array(X), np.array(y)
+
+
+def training(training_set, test_set, maneuver, method):
+    X_train, y_train, X_test, y_test = None, None, None, None
+
+    if maneuver == 'B':
+        X_train, y_train = breaking_classification(training_set)
+        X_test, y_test = breaking_classification(test_set)
+    elif maneuver == 'A':
+        X_train, y_train = acceleration_classification(training_set)
+        X_test, y_test = breaking_classification(test_set)
 
     sc = StandardScaler()
     X_train = sc.fit_transform(X_train)
     X_test = sc.fit_transform(X_test)
 
-    # classifier_KNN = KNeighborsClassifier(n_neighbors=5, metric='minkowski', p=2)
-    # classifier_KNN.fit(X_train, y_train)
-    #
-    # classifier_SVM = SVC(kernel='rbf')
-    # classifier_SVM.fit(X_train, y_train)
+    classifier = None
 
-    classifier_decision_tree = DecisionTreeClassifier(criterion='entropy')
-    classifier_decision_tree.fit(X_train, y_train)
+    if method == 'KNN':
+        classifier = KNeighborsClassifier()
+    elif method == 'TREE':
+        classifier = DecisionTreeClassifier(criterion='entropy')
+    elif method == 'SVM':
+        classifier = SVC(kernel='linear')
+    elif method == 'FOREST':
+        classifier = RandomForestClassifier(criterion='entropy')
+    elif method == 'NB':
+        classifier = GaussianNB()
+    elif method == 'LR':
+        classifier = LogisticRegression()
 
-    y_pred = classifier_decision_tree.predict(X_test)
+    classifier.fit(X_train, y_train)
+    y_pred = classifier.predict(X_test)
     cm = confusion_matrix(y_test, y_pred)
-    print(cm)
-    print(accuracy_score(y_test, y_pred))
+
+    return cm, accuracy_score(y_test, y_pred)
 
 
 def smoothing(data):
@@ -104,12 +214,21 @@ def plot(dataframe, scaled, title):
 
 
 if __name__ == "__main__":
-    df = excel_to_python("siedzenie_przodem.csv")
-    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-        print(df)
+    training_data, test_data = excel_to_python(columns=1)
+    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+    #     print(training_data)
+    #
+    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+    #     print(test_data)
 
-    breaking_classification(df)
-    training()
+    turning_classification(training_data)
 
-    # plot(df, data_normalised, 'NORMALISED')
-    # plot(df, data_standarised, 'STANDARISED')
+    # methods = ['KNN', 'TREE', 'SVM', 'FOREST', 'NB', 'LR']
+    # full_names = ['K-nearest Neighbors', 'Decision Tree', 'Support Vector Machine', 'Random Forest', 'Naive Bayes', 'Linear Regression']
+    #
+    # for i in range(len(methods)):
+    #     cm, accuracy = training(training_data, test_data, 'B', method=methods[i])
+    #     print("Confusion matrix for {} classifier is\n"
+    #           " {}".format(full_names[i], cm))
+    #     print("And accuracy score is {} ".format(accuracy))
+    #     print(40*'=')
