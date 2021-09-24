@@ -1,12 +1,11 @@
+import matplotlib.pyplot as plt
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import statistics
 import numpy as np
-from sklearn.svm import SVC
-from sklearn.metrics import confusion_matrix, accuracy_score
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.naive_bayes import GaussianNB
+from scipy.signal import savgol_filter
 import matlab.engine
+import datetime
 
 
 def run_matlab_in_python():
@@ -15,22 +14,46 @@ def run_matlab_in_python():
     eng.quit()
 
 
-def excel_to_python(columns):
-    training_set = pd.read_csv('training-set.csv')
-    test_set = pd.read_csv('test-set.csv')
-    training_data = training_set.iloc[:, columns:]
-    test_data = test_set.iloc[:, columns:]
-    return training_data, test_data
+def excel_to_python():
+    acceleration = pd.read_csv('acceleration.csv')
+    speed = pd.read_csv('speed.csv')
+    return acceleration, speed
 
 
-def breaking_feature_extraction(dataframe):
+def standarisation(dataframe):
+    sc = StandardScaler()
+    scaled_df = sc.fit_transform(dataframe)
+    standarised_df = pd.DataFrame(scaled_df, columns=dataframe.columns)
+    return standarised_df
+
+
+def normalisation(dataframe):
+    norm = MinMaxScaler()
+    norm_df = norm.fit_transform(dataframe)
+    normalised_df = pd.DataFrame(norm_df, columns=dataframe.columns)
+    return normalised_df
+
+
+def plot(dataframe, scaled, title):
+    fig, axs = plt.subplots(2)
+    fig.suptitle('[1] RAW DATA, [2] {}'.format(title))
+    axs[0].plot(dataframe)
+    axs[1].plot(scaled)
+    fig.text(0.5, 0.04, 'Sequence number', ha='center')
+    fig.text(0.08, 0.55, 'Value', va='center', rotation='vertical')
+    plt.legend(['Y'], loc='upper right', bbox_to_anchor=(1.07, 3.45))
+    plt.savefig('{}.jpg'.format(title))
+    plt.show()
+
+
+def breaking_feature_extraction(dataframe, I, P):
     X = []
     y = []
-    mean_Y = statistics.mean(dataframe.iloc[:, 1].values)
-    lower_bound = mean_Y - 0.3
-    upper_bound = mean_Y + 0.3
+    mean_Y = statistics.mean(dataframe.iloc[:, 0].values)
+    lower_bound = mean_Y - I
+    upper_bound = mean_Y + I
 
-    aggro_breakpoint = 1.8
+    aggro_breakpoint = P
 
     temp = []
     if_current_lower_than = False
@@ -45,36 +68,36 @@ def breaking_feature_extraction(dataframe):
                 y.append(0)
             temp = []
             if_current_lower_than = False
-        if dataframe.iloc[i, 1] < lower_bound or dataframe.iloc[i, 1] > upper_bound:
-            current = dataframe.iloc[i, 1]
+        if dataframe.iloc[i, 0] < lower_bound or dataframe.iloc[i, 0] > upper_bound:
+            current = dataframe.iloc[i, 0]
             if len(temp) == 1:
                 if temp[0] > current:
                     if_current_lower_than = True
-                    temp.append(dataframe.iloc[i, 1])
+                    temp.append(dataframe.iloc[i, 0])
                 else:
-                    temp = [dataframe.iloc[i, 1]]
+                    temp = [dataframe.iloc[i, 0]]
                     continue
             elif len(temp) > 1:
                 if temp[-1] > current and if_current_lower_than is True:
-                    temp.append(dataframe.iloc[i, 1])
+                    temp.append(dataframe.iloc[i, 0])
                 else:
                     temp = []
                     if_current_lower_than = False
                     temp.append(current)
             elif len(temp) == 0:
-                temp.append(dataframe.iloc[i, 1])
+                temp.append(dataframe.iloc[i, 0])
 
     return np.array(X), np.array(y)
 
 
-def acceleration_feature_extraction(dataframe):
+def acceleration_feature_extraction(dataframe, I, P):
     X = []
     y = []
-    mean_Y = statistics.mean(dataframe.iloc[:, 1].values)
-    lower_bound = mean_Y - 0.3
-    upper_bound = mean_Y + 0.3
+    mean_Y = statistics.mean(dataframe.iloc[:, 0].values)
+    lower_bound = mean_Y - I
+    upper_bound = mean_Y + I
 
-    aggro_breakpoint = 1.8
+    aggro_breakpoint = P
 
     temp = []
     if_current_greater_than = False
@@ -89,101 +112,131 @@ def acceleration_feature_extraction(dataframe):
                 y.append(0)
             temp = []
             if_current_greater_than = False
-        if dataframe.iloc[i, 1] < lower_bound or dataframe.iloc[i, 1] > upper_bound:
-            current = dataframe.iloc[i, 1]
+        if dataframe.iloc[i, 0] < lower_bound or dataframe.iloc[i, 0] > upper_bound:
+            current = dataframe.iloc[i, 0]
             if len(temp) == 1:
                 if temp[0] < current:
                     if_current_greater_than = True
-                    temp.append(dataframe.iloc[i, 1])
+                    temp.append(dataframe.iloc[i, 0])
                 else:
-                    temp = [dataframe.iloc[i, 1]]
+                    temp = [dataframe.iloc[i, 0]]
                     continue
             elif len(temp) > 1:
                 if temp[-1] < current and if_current_greater_than is True:
-                    temp.append(dataframe.iloc[i, 1])
+                    temp.append(dataframe.iloc[i, 0])
                 else:
                     temp = []
                     if_current_greater_than = False
                     temp.append(current)
             elif len(temp) == 0:
-                temp.append(dataframe.iloc[i, 1])
+                temp.append(dataframe.iloc[i, 0])
 
     return np.array(X), np.array(y)
 
 
-def swerving_classification(dataframe):
-    X = []
-    y = []
-
-    lower_bound = 10
-    upper_bound = 30
-
-    aggro_breakpoint = 2
-
-    temp = []
-    for i in range(len(dataframe.index) - 2):
-        current = None
-        if len(temp) == 5:
-            X.append(temp)
-            if max(temp) > aggro_breakpoint:
-                y.append(1)
-            else:
-                y.append(0)
-            temp = []
-        if lower_bound < abs(dataframe.iloc[i + 1, 2] - dataframe.iloc[i, 2]) < upper_bound:
-            temp.append(dataframe.iloc[i, 1])
-
-    return np.array(X), np.array(y)
-
-
-def training(training_set, test_set, maneuver, method):
-    X_train, y_train, X_test, y_test = None, None, None, None
+def which_maneuver(data, maneuver, I, P):
+    X, y = None, None
 
     if maneuver == 'BREAKING':
-        X_train, y_train = breaking_feature_extraction(training_set)
-        X_test, y_test = breaking_feature_extraction(test_set)
+        X, y = breaking_feature_extraction(data, I, P)
     elif maneuver == 'ACCELERATING':
-        X_train, y_train = acceleration_feature_extraction(training_set)
-        X_test, y_test = acceleration_feature_extraction(test_set)
+        X, y = acceleration_feature_extraction(data, I, P)
 
-    sc = StandardScaler()
-    X_train = sc.fit_transform(X_train)
-    X_test = sc.fit_transform(X_test)
+    return X, y
 
-    classifier = None
 
-    if method == 'SVM':
-        classifier = SVC(kernel='linear')
-    elif method == 'TREE':
-        classifier = DecisionTreeClassifier()
-    elif method == 'NB':
-        classifier = GaussianNB()
+run_matlab_in_python()
+acceleration, speed = excel_to_python()
+
+acceleration_without_time = acceleration.drop(columns='Timestamp')
+speed_without_time = speed.drop(columns='Timestamp')
+
+accelration_filtered = acceleration_without_time.apply(lambda x: savgol_filter(x, window_length=5, polyorder=2))
+
+acceleration_standarised = standarisation(accelration_filtered)
+acceleration_normalised = normalisation(accelration_filtered)
+
+# plot(acceleration_without_time, acceleration_standarised, 'STANDARISED')
+# plot(acceleration_without_time, acceleration_normalised, 'NORMALISED')
+
+X_breaking, y_breaking = which_maneuver(acceleration_standarised, 'BREAKING', I=0.1, P=1)
+X_accelerating, y_accelerating = which_maneuver(acceleration_standarised, 'ACCELERATING', I=0.1, P=1)
+
+print("ALL MANEUVERS: {}".format(len(y_breaking) + len(y_accelerating)))
+print(40 * "=")
+aggresive_breaking = 0
+normal_breaking = 0
+
+for i in range(len(y_breaking)):
+    if y_breaking[i] == 0:
+        normal_breaking += 1
     else:
-        print('Wrong name')
+        aggresive_breaking += 1
 
-    classifier.fit(X_train, y_train)
-    y_pred = classifier.predict(X_test)
+print("ALL BRAKING MANEUVERS: {}\n"
+      "CASES OF AGGRESIVE BREAKING: {}\n"
+      "CASES OF NORMAL BREAKING: {}".format(len(y_breaking), aggresive_breaking, normal_breaking))
+print(40 * '=')
 
-    cm = confusion_matrix(y_test, y_pred)
+aggresive_accelerating = 0
+normal_accelerating = 0
 
-    return cm, accuracy_score(y_test, y_pred)
+for i in range(len(y_accelerating)):
+    if y_accelerating[i] == 0:
+        normal_accelerating += 1
+    else:
+        aggresive_accelerating += 1
+
+print("ALL ACCELERATING MANEUVERS: {}\n"
+      "CASES OF AGGRESIVE ACCELERATING: {}\n"
+      "CASES OF NORMAL ACCELERATING: {}".format(len(y_accelerating), aggresive_accelerating, normal_accelerating))
+print(40 * '=')
+
+avg_speed = speed['speed'].mean()
+max_speed = speed['speed'].max()
+
+print('Average speed: {} m/s'.format(round(avg_speed, 2)))
+print('Maximum speed: {} m/s'.format(round(max_speed, 2)))
+
+print(40 * '=')
+
+avg_acc = acceleration['Y'].mean()
+max_acc = acceleration['Y'].max()
+
+print('Average acceleration: {} m/s^2'.format(round(avg_acc, 2)))
+print('Maximum acceleration: {} m/s^2'.format(round(max_acc, 2)))
+
+print(40 * '=')
+
+date = datetime.datetime.strptime(acceleration['Timestamp'].iat[-1], "%d-%b-%Y %H:%M:%S.%f").date()
+start_time = datetime.datetime.strptime(acceleration['Timestamp'].iat[0], "%d-%b-%Y %H:%M:%S.%f").time()
+end_time = datetime.datetime.strptime(acceleration['Timestamp'].iat[-1], "%d-%b-%Y %H:%M:%S.%f").time()
+time_of_drive = datetime.datetime.strptime(acceleration['Timestamp'].iat[-1],
+                                           "%d-%b-%Y %H:%M:%S.%f") - datetime.datetime.strptime(
+    acceleration['Timestamp'].iat[0], "%d-%b-%Y %H:%M:%S.%f")
+
+print('Date: {}'.format(date))
+print('Start time: {}'.format(start_time))
+print('End time: {}'.format(end_time))
+print('The time of the drive is: {}'.format(time_of_drive))
 
 
-if __name__ == "__main__":
-    run_matlab_in_python()
-    training_data, test_data = excel_to_python(columns=1)
-    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-    #     print(training_data)
-    #
-    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-    #     print(test_data)
+def send_data():
+    all_maneuvers = len(y_breaking) + len(y_accelerating)
+    breaking_len = len(y_breaking)
+    acceleration_len = len(y_accelerating)
+    percent_of_aggresive_breakins = aggresive_breaking / len(y_breaking)
+    percent_of_normal_breakings = normal_breaking / len(y_breaking)
+    percent_of_aggresive_accelerating = aggresive_accelerating / len(y_accelerating)
+    percent_of_normal_accelerating = normal_accelerating / len(y_accelerating)
 
-    methods = ['SVM', 'TREE', 'NB']
-    full_names = ['Support Vector Machine', 'Decision Tree', 'Naive Bayes']
-
-    for i in range(len(methods)):
-        cm, accuracy = training(training_data, test_data, 'BREAKING', method=methods[i])
-        print("Confusion matrix for {} classifier is\n"
-              " {}".format(full_names[i], cm))
-        print("And accuracy score is {} ".format(accuracy))
-        print(40*'=')
+    return date, start_time, \
+           end_time, time_of_drive, \
+           round(avg_speed*18/5, 2), round(max_speed*18/5, 2), \
+           round(avg_acc, 2), round(max_acc, 2), \
+           all_maneuvers, breaking_len, \
+           acceleration_len, normal_breaking, \
+           aggresive_breaking, normal_accelerating, \
+           aggresive_accelerating, round(percent_of_aggresive_breakins, 2), \
+           round(percent_of_normal_breakings, 2), round(percent_of_aggresive_accelerating, 2), \
+           round(percent_of_normal_accelerating, 2)
