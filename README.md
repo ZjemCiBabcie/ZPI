@@ -1,4 +1,5 @@
-# Monitoring driver behaviour using smartphone sensors.
+# Monitoring driver behaviour using smartphone sensors. Full project documentation is available only in Polish.
+
 ## Created as a part of team project 'ZPI'.
 ### Technologies:
 * Python
