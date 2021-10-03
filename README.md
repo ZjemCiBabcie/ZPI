@@ -23,4 +23,4 @@ Preporcessed data is now ready for feature extraction.
 
 ### IV. Maneuver classification.
 
-### Generating a report for the user.
+### V. Generating a report for the user.
