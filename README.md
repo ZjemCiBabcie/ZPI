@@ -1,4 +1,5 @@
-# Monitoring driver behaviour using smartphone sensors. Full project documentation is available only in Polish.
+# Monitoring driver behaviour using smartphone sensors. 
+Full project documentation (in Polish) available here: https://github.com/wkberezowski/ZPI/blob/Z3/PROJECT%20DOCUMENTATION%20IN%20POLISH.pdf.
 
 ## Created as a part of team project 'ZPI'.
 ### Technologies:
@@ -7,21 +8,12 @@
   * pandas, sklearn, statistics, numpy, matlab.engine
 * Matlab
 ### I. Conducting experiments and gathering data.
-Matlab mobile app was used to gather accelerometer and GPS data. Matlab mobile automatically uploads gathered data to the cloud. Then you can easily download the files on your machine.
-
-<p align='center'>
-<img align="center" width="300" height="500" src="https://play-lh.googleusercontent.com/-y6uiyXP3XyGVdlRt7AvDf8utdrbn4-X44EE0wmrnHgspS_AS0nxuW5OhMA1NpaVx_k=w1920-h977-rw">
-</p>
-
+Matlab mobile app was used to gather accelerometer and GPS data. 
 ### II. Data processing.
-This phase consisted of several steps:
-1. Converting *mat* files to *csv* format in Matlab.
-2. Transforming the data into pandas dataframe object.
-3. Importing the converted files and processing them in python using filtering and standarisation. 
-
+Used filtering and standarisation for data preprocessing.
 ### III. Feature extraction.
-Preporcessed data is now ready for feature extraction. 
-
+Performed feature extaction to detect braking and accelerating maneuvers.
 ### IV. Maneuver classification.
-
+Classified detected maneuvers into agressive and normal.
 ### V. Generating a report for the user.
+The report contained information such as: number of aggresive and normal maneuvers or average and top speed.
