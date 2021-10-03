@@ -9,5 +9,5 @@
 Matlab mobile app was used to gather accelerometer and GPS data.
 
 <p align='center'>
-<img align="center" width="300" height="400" src="https://play-lh.googleusercontent.com/-y6uiyXP3XyGVdlRt7AvDf8utdrbn4-X44EE0wmrnHgspS_AS0nxuW5OhMA1NpaVx_k=w1920-h977-rw">
+<img align="center" width="300" height="500" src="https://play-lh.googleusercontent.com/-y6uiyXP3XyGVdlRt7AvDf8utdrbn4-X44EE0wmrnHgspS_AS0nxuW5OhMA1NpaVx_k=w1920-h977-rw">
 </p>
